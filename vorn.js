@@ -10,7 +10,6 @@ http://bl.ocks.org/mbostock/3808234
 http://bl.ocks.org/mbostock/3916621
 http://bl.ocks.org/cloudshapes/5662135
 http://bost.ocks.org/mike/transition/
-
 http://www.jasondavies.com/voroboids/
 
 * Clean vertices removing duplicates and invalid positions
@@ -27,10 +26,8 @@ need to change vertices format ?
 Closure defines the variable for
 a closure is the local variables for a function — kept alive after the function has returned, or
 a closure is a stack-frame which is not deallocated when the function returns (as if a 'stack-frame' were malloc'ed instead of being on the stack!).
-
-<path class="8" d="M470,300L494,371L611,320L561,281Z" style="fill: #669900;"></path>
-
 */
+
 function isAlive(v){
   return v.isAlive;
 }
@@ -65,6 +62,20 @@ function updateIsAlive(triangulation, tessellation){
 function polygonLine(d) {
   var dMod = d.map(function(x){ return x.map(function(z){return Math.round(z);}); })
   return "M" + dMod.join("L") + "Z";
+}
+
+function segment(A,B){
+  return [B.x - A.x, B.y -A.y];
+  //return [B[0]-A[0], B[1]-A[1]];
+}
+
+function angleToVertical(v){
+    var x = v[0];
+    var y = v[1];
+    var z = Math.sqrt(x*x + y*y);
+    var cos = x / z;
+    var theta = Math.acos(cos);
+    return (y>0) ? theta : 2.0*Math.PI - theta;
 }
 
 function solve2dSystem(A,Y)
@@ -192,27 +203,52 @@ function pathTween2(d,i,a){
   return polygonInterpolator(sourcePolygon, d);
 }
 
+function zip(arrayA, arrayB) {
+    var length = Math.min(arrayA.length, arrayB.length);
+    var result = [];
+    for (var n = 0; n < length; n++) {
+        result.push([arrayA[n], arrayB[n]]);
+    }
+    return result;
+}
+
 function pathTween(d, i, a ) {
         var precision = 4;
         var path0 = this.cloneNode();
         var path1 = this;
         path1.setAttribute("d", polygonLine(d)); // confusing but here attribute "d" corresponds to a.
+
         var n0 = path0.getTotalLength();
         var n1 = path1.getTotalLength();
+        var vP = d.point;
 
         // Uniform sampling of distance based on specified precision.
         var distances = [0], i = 0, dt = precision / Math.max(n0, n1);
         while ((i += dt) < 1) distances.push(i);
         distances.push(1);
 
+        var resampledPath0 = distances.map(function(t) { return path0.getPointAtLength(t * n0)} )
+                                                          .sort(function(a,b) { var sa = segment(vP, a), sb = segment(vP, b);
+                                                                                         return angleToVertical(sa) - angleToVertical(sb) } )
+
+        var resampledPath1 = distances.map(function(t) { return path1.getPointAtLength(t * n1)} )
+                                                          .sort(function(a,b) { var sa = segment(vP, a), sb = segment(vP, b);
+                                                                                         return angleToVertical(sa) - angleToVertical(sb) } )
+
+        var zipped = zip(resampledPath0, resampledPath1);
+        var interpolators = zipped.map(function(z) { var p1 = [z[0].x,z[0].y];
+                                                                              var p2 = [z[1].x, z[1].y];
+                                                                              return d3.interpolate(p1,p2) } );
+
         // Compute point-interpolators at each distance.
-        var points = distances.map(function(t) {
-          var p0 = path0.getPointAtLength(t * n0),
-                p1 = path1.getPointAtLength(t * n1);
-          return d3.interpolate([p0.x, p0.y], [p1.x, p1.y]);
-        });
+    //    var points = distances.map(function(t) {
+    //      var p0 = path0.getPointAtLength(t * n0),
+    //            p1 = path1.getPointAtLength(t * n1);
+    //      return d3.interpolate([p0.x, p0.y], [p1.x, p1.y]);
+     //   });
         return function(t){
-                  return t < 1 ? "M" + points.map(function(p) { return p(t); }).join("L") : polygonLine(d);
+                  var res  = t < 1 ? "M" + interpolators.map(function(p) { return p(t); }).join("L") : polygonLine(d);
+                  return res;
                 }
 }
 
@@ -301,7 +337,7 @@ function redraw() {
          .attr("class", function(d, i) { return ++counter; })
          .attr("d", pathPoint)
          .transition()
-         .duration(200)
+         .duration(1000)
          .attrTween("d", pathTween)
          .each("end",cleanDeadCells)
 
@@ -310,7 +346,7 @@ function redraw() {
 
 function updatePaths(){
     path.transition()
-            .duration(200)
+            .duration(1000)
             .attrTween("d", pathTween)
 }
 
