@@ -1,7 +1,26 @@
-var width = 960, height = 700;
-var playerToPlay = "player2";
-var counter = 0;
-var tolerance = 0.1;
+
+var boardDisplay = {
+                                width: 760,
+                                height: 500,
+                                 smoothingParameter: 0.1,
+                                 colorPlayer1 : "#FF3399",
+                                 colorPlayer2 : "#F3F315"
+                               }
+
+var game = {
+                    counter: 0.,
+                    playerToPlay: "player1",
+                    scorePlayer1: 0.5,
+                    scorePlayer2:  0.5
+                    }
+
+var vertices = new Array();
+vertices[0] =  {x:Math.random() * boardDisplay.width,
+                       y:Math.random() * boardDisplay.height,
+                       player:"player1",
+                       isAlive:true};
+
+
 /*
 Voronoi can take an data model, as long as the x and y accessor are specified in its initalisation.
 
@@ -12,10 +31,12 @@ http://bl.ocks.org/cloudshapes/5662135
 http://bost.ocks.org/mike/transition/
 http://www.jasondavies.com/voroboids/
 
-* Clean vertices removing duplicates and invalid positions
-* Need to compute surface 1 and surface 2
-* Rendre le truc joli en dessinant une cellule.
-* Ordonner les cotes des polygones. using array.sort( prendre l'angle par rapport a la verticale.)
+* Creer un objet qui represente le jeu.
+* Gerer le debut du jeu.
+* Rendre le truc robuste pour que ca plante pas sur le premier player.
+* Clean vertices removing duplicates and invalid positions.
+* Clean les paths tween de maniere a ce qu'il ne reste qu'une fonction au lieu de 2.
+* Ajouter du texte decrivant les regles du jeu.
 
 To understand what is Enter(), Exit() and Remove():
 http://bost.ocks.org/mike/join/
@@ -32,20 +53,20 @@ function isAlive(v){
   return v.isAlive;
 }
 
-function roundPoint(p){
-  return [Math.round(p[0]),Math.round(p[1])];
-}
-
 function alternatePlayer(){
   // define a type player, that has a name and a color scheme.
-  playerToPlay =  (playerToPlay=="player1")?"player2":"player1"
+  d3.select("#"+game.playerToPlay)
+      .style("-webkit-animation",null)
+  game.playerToPlay =  (game.playerToPlay=="player1")?"player2":"player1"
+  d3.select("#"+game.playerToPlay)
+      .style("-webkit-animation","glow .5s infinite alternate")
 }
 
 function touchBorder(polygon){
   // polygon is an array of Array[2]
   for (var i = 0; i < polygon.length; i++){
     var a = polygon[i][0], b = polygon[i][1];
-    if ((a==0.0)||(b==0.0)||(a==width)||(b==height)) return true;
+    if ((a==0.0)||(b==0.0)||(a==boardDisplay.width)||(b==boardDisplay.height)) return true;
   }
   return false;
 }
@@ -64,104 +85,6 @@ function polygonLine(d) {
   return "M" + dMod.join("L") + "Z";
 }
 
-function segment(A,B){
-  return [B.x - A.x, B.y -A.y];
-  //return [B[0]-A[0], B[1]-A[1]];
-}
-
-function angleToVertical(v){
-    var x = v[0];
-    var y = v[1];
-    var z = Math.sqrt(x*x + y*y);
-    var cos = x / z;
-    var theta = Math.acos(cos);
-    return (y>0) ? theta : 2.0*Math.PI - theta;
-}
-
-function solve2dSystem(A,Y)
-{
-// [[a,b],[c,d]][x1,x2]=[y1,y2]
-// ax1 + bx2 = y1
-// cx1 + dx2 = y2
-// Solve AX = Y, 2x2 system.
-  var det  = A[0][0]*A[1][1]-A[0][1]*A[1][0];
-  var x1,x2;
-  if (Math.abs(det)>tolerance){
-     x1 = (A[1][1]*Y[0]-A[0][1]*Y[1])/det;
-     x2 = (A[0][0]*Y[1]-A[1][0]*Y[0])/det;
-  }else if ((Math.abs(A[0][0]*Y[1]- A[1][0]*Y[0]) > tolerance) || (Math.abs(A[0][1]*Y[1]- A[1][1]*Y[0]) > tolerance )){
-    return undefined;
-  }
-  else if (Math.abs(A[0][0])>tolerance){
-      x1 = Y[0]/A[0][0];
-      y1 = 0.0;
-  }else if (Math.abs(A[0][0])>tolerance){
-      x1 = 0.0;
-      y1 = Y[0]/A[0][1];
-  }else{
-       x1 = 0.0;
-       y1 = 0.0;
-  }
-  return [x1,x2];
-}
-
-// [ptA,ptB], [ptC,ptD]
-function segmentIntersection(AB, CD)
-{
-   var A = AB[0];
-   var B = AB[1];
-   var C = CD[0];
-   var D = CD[1];
-   var matrix = [[A[0]-B[0], D[0]-C[0]],[A[1]-B[1], D[1]-C[1]]];
-   var Y = [D[0]-B[0], D[1]-B[1]];
-   var solution = solve2dSystem(matrix, Y);
-   if (solution[0]<0.0-tolerance || solution[0]>1.0 +tolerance|| solution[1]<0.0-tolerance || solution[1]>1.0+tolerance) return false;
-   var intersection = d3.interpolate(B,A)(solution[0]);
-   return intersection;
-}
-
-function projectOnPolygon(pt, poly)
-{
-  var centroid = poly.point;
-  var nbSides  = poly.length;
-  var segmentOut = [[centroid.x,centroid.y],pt];
-  var i = 0;
-  side = [poly[nbSides-1],poly[0]];
-  var intersection =segmentIntersection(segmentOut,side);
-  while((i<nbSides-1)&&(!intersection))
-  {
-    side = [poly[i],poly[i+1]];
-    intersection = segmentIntersection(segmentOut,side);
-    i++;
-  }
-  // if !(intersection) {throw new UserException("intersection not found")};
-  return intersection;
-}
-
-function polygonInterpolator(sourcePolygon, destinationPolygon)
-{
-  // determiner quel polygon est le plus petit
-  var sA = d3.geom.polygon(sourcePolygon).area();
-  var dA = d3.geom.polygon(destinationPolygon).area();
-  var contraction = dA < sA;
-  var bigPolygon = contraction ? sourcePolygon : destinationPolygon;
-  var smallPolygon = contraction ? destinationPolygon : sourcePolygon;
-
-  var interpolators = new Array();
-   for (var i = 0; i< bigPolygon.length; i++)
-   {
-      var toBeProjected = roundPoint(bigPolygon[i]) // because of rounding point can happen to be inside of the polygon which messes up evrythg.
-      var projection = projectOnPolygon(toBeProjected, smallPolygon);
-      var interp =  contraction? d3.interpolate(toBeProjected,projection) : d3.interpolate(projection,toBeProjected);
-      interpolators.push(interp);
-   }
-
-   return function(t){
-                  var res = t < 1 ? "M" + interpolators.map(function(p) { return p(t); }).join("L") +"Z": polygonLine(destinationPolygon);
-                  return res;
-                }
-}
-
 function pathPoint(d){
   return "M"+d.point.x+","+d.point.y+"L"+d.point.x+","+d.point.y+"Z";
 }
@@ -175,48 +98,12 @@ function pathToPolygon(p){
   return a;
 }
 
-function bezier(a1,c,a2){
-    return a1[0]+" "+a1[1]+" Q "+c[0]+" "+c[1]+" "+a2[0]+" "+a2[1];
-}
-
-
-function polygonToCell(p,smoothingFatctor){
-    var f = p[0];
-    var l = p[p.length-1]
-    p.unshift(l);
-    p.push(f);
-    b=""
-    for ( var i = 1; i< p.length-1; i++){
-        var previous = p[i-1];
-        var next = p[i+1];
-        var control = p[i];
-        var anchor1 = d3.interpolate(control,previous)(smoothingFatctor);
-        var anchor2 = d3.interpolate(control,next)(smoothingFatctor);
-        b += bezier(anchor1,control,anchor2) +"L";
-    }
-    return "M"+b.substring(0,b.length-1);
-}
-
-function pathTween2(d,i,a){
-  var sourcePolygon = pathToPolygon(a);
-  this.setAttribute("d", polygonLine(d));
-  return polygonInterpolator(sourcePolygon, d);
-}
-
-function zip(arrayA, arrayB) {
-    var length = Math.min(arrayA.length, arrayB.length);
-    var result = [];
-    for (var n = 0; n < length; n++) {
-        result.push([arrayA[n], arrayB[n]]);
-    }
-    return result;
-}
-
 function pathTween(d, i, a ) {
         var precision = 4;
         var path0 = this.cloneNode();
         var path1 = this;
-        path1.setAttribute("d", polygonLine(d)); // confusing but here attribute "d" corresponds to a.
+        var pathData = Math.abs(boardDisplay.smoothingParameter) < 0.01 ?  polygonLine(d) : polygonToCell( d , boardDisplay.smoothingParameter)
+        path1.setAttribute("d", pathData); // polygonLine(d)); // confusing but here attribute "d" corresponds to a.
 
         var n0 = path0.getTotalLength();
         var n1 = path1.getTotalLength();
@@ -240,14 +127,8 @@ function pathTween(d, i, a ) {
                                                                               var p2 = [z[1].x, z[1].y];
                                                                               return d3.interpolate(p1,p2) } );
 
-        // Compute point-interpolators at each distance.
-    //    var points = distances.map(function(t) {
-    //      var p0 = path0.getPointAtLength(t * n0),
-    //            p1 = path1.getPointAtLength(t * n1);
-    //      return d3.interpolate([p0.x, p0.y], [p1.x, p1.y]);
-     //   });
         return function(t){
-                  var res  = t < 1 ? "M" + interpolators.map(function(p) { return p(t); }).join("L") : polygonLine(d);
+                  var res  = t < 1 ? "M" + interpolators.map(function(p) { return p(t); }).join("L") : pathData;
                   return res;
                 }
 }
@@ -257,8 +138,7 @@ function disappearTween(d, i, a ) { // d: data, i: index, a: attribute, this: no
        var path0 = this;
        var n0 = this.getTotalLength();
 
-        var centroid = this.__data__.point // HTF access __data__ ????
-        // Uniform sampling of distance based on specified precision.
+        var centroid = d.point
         var distances = [0], i = 0, dt = precision / n0;
         while ((i += dt) < 1) distances.push(i);
         distances.push(1);
@@ -274,23 +154,15 @@ function disappearTween(d, i, a ) { // d: data, i: index, a: attribute, this: no
                 }
 }
 
+
 function color(d){
-  colorPlayer1 = "#FF3399";
-  colorPlayer2 = "#669900";
-  //var a = d3.geom.polygon(d).area();
-  var c = (d.point.isAlive)?((d.point.player=="player1")?colorPlayer1:colorPlayer2):"red";
+  var c = (d.point.isAlive)?((d.point.player=="player1")?boardDisplay.colorPlayer1:boardDisplay.colorPlayer2):"red";
   return c;
 }
 
-//////////// Vertices initialization ////////////////
-var vertices = new Array();
-vertices[0] =  {x:Math.random() * width, y:Math.random() * height, player:"player1",isAlive:true};
-//////////// Vertices initialization ////////////////
-
-///////// Events /////////
 var onMouseClick = function(d){
   var m = d3.mouse(this);
-  vertices.push({x:m[0], y:m[1], player:playerToPlay, isAlive:true});
+  vertices.push({x:m[0], y:m[1], player:game.playerToPlay, isAlive:true});
   alternatePlayer();
   redraw();
 }
@@ -299,16 +171,55 @@ var onMouseClick = function(d){
 var voronoi = d3.geom.voronoi()
                            .x(function(d) { return d.x; })
                            .y(function(d) { return d.y; })
-                           .clipExtent([[0, 0], [width, height]]);
+                           .clipExtent([[0, 0], [boardDisplay.width, boardDisplay.height]]);
 
-var svg = d3.select("body")
-                    .append("svg")
-                    .attr("width", width)
-                    .attr("height", height)
+var svg = d3.select("#board")
+                    .attr("width", boardDisplay.width)
+                    .attr("height", boardDisplay.height)
                     .on("click", onMouseClick);
 
-var path = svg.append("g").selectAll("path")
+var path    = svg.append("g").selectAll("path")
 var circles = svg.append("g").selectAll("circle")
+var scoreBar = d3.select("#scoreBar")
+                            .attr("width", boardDisplay.width)
+                            .attr("height", boardDisplay.height * 0.05)
+var barPlayer1 = scoreBar.append("rect").attr("id","scorePlayer1")
+var barPlayer2 = scoreBar.append("rect").attr("id","scorePlayer2")
+
+function updateScore(tessellation){
+  // could use map & filter here.
+  game.scorePlayer1 = 0.0;
+  game.scorePlayer2 = 0.0;
+  for (var i=0; i < tessellation.length; i++){
+    var t = tessellation[i];
+    var a = d3.geom.polygon(t).area();
+    var p = t.point.player;
+    if (p=="player1"){
+      game.scorePlayer1 += a;
+    }else{
+      game.scorePlayer2 += a;
+    }
+  }
+  var total = game.scorePlayer1 + game.scorePlayer2;
+  game.scorePlayer1 /= total;
+  game.scorePlayer2 /= total;
+}
+
+function updateScoreBar(){
+  barPlayer1.attr("height", boardDisplay.height * 0.05)
+                  .style("fill", boardDisplay.colorPlayer1)
+                  .transition()
+                  .duration(1000)
+                  .attr("width", boardDisplay.width*game.scorePlayer1)
+  barPlayer2.attr("height", boardDisplay.height * 0.05)
+                   .style("fill", boardDisplay.colorPlayer2)
+                  .transition()
+                  .duration(1000)
+                  .attr("x", boardDisplay.width*game.scorePlayer1)
+                  .attr("width", boardDisplay.width*game.scorePlayer2)
+}
+
+updateScoreBar();
 redraw();
 
 function redraw() {
@@ -334,13 +245,15 @@ function redraw() {
   updatePaths();
   path.enter()
          .append("path")
-         .attr("class", function(d, i) { return ++counter; })
+         .attr("class", function(d, i) { return ++game.counter; })
          .attr("d", pathPoint)
          .transition()
          .duration(1000)
          .attrTween("d", pathTween)
          .each("end",cleanDeadCells)
 
+  updateScore(tessellation);
+  updateScoreBar();
   path.style("fill", color )
 }
 
@@ -366,5 +279,6 @@ function cleanDeadCells()// Now we're going to remove eaten cells.
 
   circles = circles.data(aliveVertices, function(d){ return d.x+","+d.y;})
   circles.exit().remove()
+  updateScore(tessellation);
+  updateScoreBar();
 }
-

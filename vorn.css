@@ -1,0 +1,64 @@
+body {
+  padding-top: 70px;
+  padding-bottom: 200px;
+}
+
+/* http://jsfiddle.net/dH6LS/689/ */
+
+.starter-template {
+  padding: 40px 15px;
+  text-align: center;
+}
+
+circle {
+    stroke: #EFEDF5;
+    fill: #EFEDF5;
+    pointer-events: none;
+}
+
+line {
+    pointer-events: none;
+    stroke: #0FFF00;
+    stroke-width: 2px;
+    opacity: 0.1;
+}
+
+path{
+    stroke: #FFFFFF;
+    stroke-width: 2px;
+    fill:none;
+}
+
+@-webkit-keyframes glowplayer1 {
+    to {
+        text-shadow: 3px 0 10px yellow;
+    }
+}
+
+#player1{
+    text-align: left;
+    -webkit-animation: glowplayer1 .5s infinite alternate;
+}
+
+@-webkit-keyframes glowplayer2 {
+    to {
+        text-shadow: 3px 0 10px #FF3399;
+    }
+}
+
+#player2{
+    text-align: right;
+        -webkit-animation: glowplayer2 .5s infinite alternate;
+}
+
+
+#board{
+    display: block;
+    margin: auto;
+    border-radius: 4px
+}
+
+#scoreBar{
+    display: block;
+    margin: auto;
+}
