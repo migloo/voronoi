@@ -1,53 +1,26 @@
+/*
+* Clean vertices removing duplicates and invalid positions.
+* Ajouter du texte decrivant les regles du jeu.
+* Afficher nombre de coup restant a jouer.
+*/
 
 var boardDisplay = {
-                                width: 760,
-                                height: 500,
+                                 width: 760,
+                                 height: 500,
                                  smoothingParameter: 0.1,
                                  colorPlayer1 : "#FF3399",
                                  colorPlayer2 : "#F3F315"
                                }
 
 var game = {
-                    counter: 0.,
-                    playerToPlay: "player1",
-                    scorePlayer1: 0.5,
-                    scorePlayer2:  0.5
+                      counter: 0.,
+                      maxCount: 10.0,
+                      playerToPlay: "player1",
+                      scorePlayer1: 0.5,
+                      scorePlayer2:  0.5
                     }
 
 var vertices = new Array();
-vertices[0] =  {x:Math.random() * boardDisplay.width,
-                       y:Math.random() * boardDisplay.height,
-                       player:"player1",
-                       isAlive:true};
-
-
-/*
-Voronoi can take an data model, as long as the x and y accessor are specified in its initalisation.
-
-References :
-http://bl.ocks.org/mbostock/3808234
-http://bl.ocks.org/mbostock/3916621
-http://bl.ocks.org/cloudshapes/5662135
-http://bost.ocks.org/mike/transition/
-http://www.jasondavies.com/voroboids/
-
-* Creer un objet qui represente le jeu.
-* Gerer le debut du jeu.
-* Rendre le truc robuste pour que ca plante pas sur le premier player.
-* Clean vertices removing duplicates and invalid positions.
-* Clean les paths tween de maniere a ce qu'il ne reste qu'une fonction au lieu de 2.
-* Ajouter du texte decrivant les regles du jeu.
-
-To understand what is Enter(), Exit() and Remove():
-http://bost.ocks.org/mike/join/
-
-Add a Force() on Vertices to make it more lively:
-need to change vertices format ?
-
-Closure defines the variable for
-a closure is the local variables for a function — kept alive after the function has returned, or
-a closure is a stack-frame which is not deallocated when the function returns (as if a 'stack-frame' were malloc'ed instead of being on the stack!).
-*/
 
 function isAlive(v){
   return v.isAlive;
@@ -59,7 +32,7 @@ function alternatePlayer(){
       .style("-webkit-animation",null)
   game.playerToPlay =  (game.playerToPlay=="player1")?"player2":"player1"
   d3.select("#"+game.playerToPlay)
-      .style("-webkit-animation","glow .5s infinite alternate")
+      .style("-webkit-animation","glow"+game.playerToPlay+" .5s infinite alternate")
 }
 
 function touchBorder(polygon){
@@ -98,62 +71,52 @@ function pathToPolygon(p){
   return a;
 }
 
-function pathTween(d, i, a ) {
+function pathTween(node0, node1, vP){
         var precision = 4;
-        var path0 = this.cloneNode();
-        var path1 = this;
-        var pathData = Math.abs(boardDisplay.smoothingParameter) < 0.01 ?  polygonLine(d) : polygonToCell( d , boardDisplay.smoothingParameter)
-        path1.setAttribute("d", pathData); // polygonLine(d)); // confusing but here attribute "d" corresponds to a.
-
-        var n0 = path0.getTotalLength();
-        var n1 = path1.getTotalLength();
-        var vP = d.point;
+        var n0 = node0.getTotalLength();
+        var n1 = node1.getTotalLength();
 
         // Uniform sampling of distance based on specified precision.
         var distances = [0], i = 0, dt = precision / Math.max(n0, n1);
         while ((i += dt) < 1) distances.push(i);
         distances.push(1);
 
-        var resampledPath0 = distances.map(function(t) { return path0.getPointAtLength(t * n0)} )
+        var resamplednode0 = distances.map(function(t) { return node0.getPointAtLength(t * n0)} )
                                                           .sort(function(a,b) { var sa = segment(vP, a), sb = segment(vP, b);
                                                                                          return angleToVertical(sa) - angleToVertical(sb) } )
 
-        var resampledPath1 = distances.map(function(t) { return path1.getPointAtLength(t * n1)} )
+        var resamplednode1 = distances.map(function(t) { return node1.getPointAtLength(t * n1)} )
                                                           .sort(function(a,b) { var sa = segment(vP, a), sb = segment(vP, b);
                                                                                          return angleToVertical(sa) - angleToVertical(sb) } )
 
-        var zipped = zip(resampledPath0, resampledPath1);
+        var zipped = zip(resamplednode0, resamplednode1);
         var interpolators = zipped.map(function(z) { var p1 = [z[0].x,z[0].y];
                                                                               var p2 = [z[1].x, z[1].y];
                                                                               return d3.interpolate(p1,p2) } );
 
         return function(t){
-                  var res  = t < 1 ? "M" + interpolators.map(function(p) { return p(t); }).join("L") : pathData;
+                  var res  = t < 1 ? "M" + interpolators.map(function(p) { return p(t); }).join("L") : node1.getAttribute("d");
                   return res;
                 }
 }
 
-function disappearTween(d, i, a ) { // d: data, i: index, a: attribute, this: node
-       var precision = 4;
-       var path0 = this;
-       var n0 = this.getTotalLength();
-
-        var centroid = d.point
-        var distances = [0], i = 0, dt = precision / n0;
-        while ((i += dt) < 1) distances.push(i);
-        distances.push(1);
-
-        // Compute point-interpolators at each distance.
-        var points = distances.map(function(t) {
-          var p0 = path0.getPointAtLength(t * n0)
-          return d3.interpolate([p0.x, p0.y], [centroid.x, centroid.y]);
-        });
-        return function(t){
-                  var endPath = "M"+centroid.x+","+centroid.y+"L"+centroid.x+","+centroid.y+"Z";
-                  return t < 1 ? "M" + points.map(function(p) { return p(t); }).join("L") : endPath;
-                }
+function polygonTween(d, i, a ) {
+        var node0 = this.cloneNode();
+        var node1 = this;
+        var pathData = Math.abs(boardDisplay.smoothingParameter) < 0.01 ?  polygonLine(d) : polygonToCell( d , boardDisplay.smoothingParameter)
+        node1.setAttribute("d", pathData); // polygonLine(d)); // confusing but here attribute "d" corresponds to a.
+        var vP = d.point;
+        return pathTween(node0, node1, vP);
 }
 
+function disappearTween(d, i, a ) { // d: data, i: index, a: attribute, this: node
+        var node0 = this.cloneNode();
+        var node1 = this;
+        var pathData = pathPoint(d);
+        node1.setAttribute("d", pathData); // polygonLine(d)); // confusing but here attribute "d" corresponds to a.
+        var vP = d.point;
+        return pathTween(node0, node1, vP);
+}
 
 function color(d){
   var c = (d.point.isAlive)?((d.point.player=="player1")?boardDisplay.colorPlayer1:boardDisplay.colorPlayer2):"red";
@@ -161,30 +124,61 @@ function color(d){
 }
 
 var onMouseClick = function(d){
+  if(game.counter >= game.maxCount) return;
+  if (game.counter==0) startOfGame();
   var m = d3.mouse(this);
   vertices.push({x:m[0], y:m[1], player:game.playerToPlay, isAlive:true});
   alternatePlayer();
   redraw();
+  if(game.counter == game.maxCount ) endOfGame();
 }
 
-///////// Events /////////
 var voronoi = d3.geom.voronoi()
                            .x(function(d) { return d.x; })
                            .y(function(d) { return d.y; })
                            .clipExtent([[0, 0], [boardDisplay.width, boardDisplay.height]]);
 
+// Setting Up General Layout
 var svg = d3.select("#board")
                     .attr("width", boardDisplay.width)
                     .attr("height", boardDisplay.height)
                     .on("click", onMouseClick);
 
-var path    = svg.append("g").selectAll("path")
-var circles = svg.append("g").selectAll("circle")
+svg.append("rect").attr("x",0.0)
+                            .attr("y",0.0)
+                            .attr("width",boardDisplay.width)
+                            .attr("height",boardDisplay.height)
+                            .style("fill", "white")
+
+var path    = svg.append("g").selectAll("path");
+var circles = svg.append("g").selectAll("circle");
 var scoreBar = d3.select("#scoreBar")
                             .attr("width", boardDisplay.width)
-                            .attr("height", boardDisplay.height * 0.05)
-var barPlayer1 = scoreBar.append("rect").attr("id","scorePlayer1")
-var barPlayer2 = scoreBar.append("rect").attr("id","scorePlayer2")
+                            .attr("height", boardDisplay.height * 0.05);
+
+var barPlayer1 = scoreBar.append("rect").attr("id","scorePlayer1");
+var barPlayer2 = scoreBar.append("rect").attr("id","scorePlayer2");
+var marker50  = scoreBar.append("rect").attr("id","marker50")
+                                                                .attr("x", boardDisplay.width*0.5)
+                                                                .attr("width", "4px")
+                                                                .attr("height", "30px")
+                                                                .attr("margin-left", "-2px")
+                                                                .style("fill-opacity", 0.0)
+/*
+svg.append("circle")
+      .attr("id","circlePlayer1")
+      .attr("cx",-50)
+      .attr("cy", boardDisplay.height * 0.4)
+      .attr("r", 40)
+
+svg.append("circle")
+      .attr("id","circlePlayer2")
+      .attr("cx", boardDisplay.width + 10)
+      .attr("cy", boardDisplay.height * 0.4)
+      .attr("r", 40)
+*/
+
+// End Of Setting Up General Layout
 
 function updateScore(tessellation){
   // could use map & filter here.
@@ -219,11 +213,10 @@ function updateScoreBar(){
                   .attr("width", boardDisplay.width*game.scorePlayer2)
 }
 
-updateScoreBar();
-redraw();
-
 function redraw() {
   // update underlying data before updating visuals
+  if (vertices.length == 0) return;
+
   var aliveVertices = vertices.filter(isAlive);
   var triangulation = voronoi.links(aliveVertices);
   var tessellation = voronoi(aliveVertices);
@@ -249,9 +242,8 @@ function redraw() {
          .attr("d", pathPoint)
          .transition()
          .duration(1000)
-         .attrTween("d", pathTween)
+         .attrTween("d", polygonTween)
          .each("end",cleanDeadCells)
-
   updateScore(tessellation);
   updateScoreBar();
   path.style("fill", color )
@@ -260,7 +252,7 @@ function redraw() {
 function updatePaths(){
     path.transition()
             .duration(1000)
-            .attrTween("d", pathTween)
+            .attrTween("d", polygonTween)
 }
 
 function cleanDeadCells()// Now we're going to remove eaten cells.
@@ -282,3 +274,30 @@ function cleanDeadCells()// Now we're going to remove eaten cells.
   updateScore(tessellation);
   updateScoreBar();
 }
+
+function startOfGame(){
+    d3.select("#clickStartGame")
+        .text(null)
+    d3.select("#player1")
+        .style("opacity",1.0)
+    d3.select("#player2")
+        .style("opacity",1.0)
+    d3.select("#marker50")
+        .style("fill-opacity",1.0)
+}
+
+function endOfGame(){
+  var endMessage = " "+((game.scorePlayer1>game.scorePlayer2)? "Player1":"Player2" )+ " wins the game !"
+  svg.selectAll("path")
+       .transition()
+       .duration(1000)
+         .style("fill-opacity", 0.5)
+
+  d3.select("#clickStartGame")
+        .text(endMessage)
+        .style("margin-left", "-380px")
+    .transition()
+       .duration(1000)
+        .style("color", "black")
+}
+

@@ -1,8 +1,6 @@
-
 function roundPoint(p){
   return [Math.round(p[0]),Math.round(p[1])];
 }
-
 
 function solve2dSystem(A,Y)
 {

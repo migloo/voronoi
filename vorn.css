@@ -3,8 +3,6 @@ body {
   padding-bottom: 200px;
 }
 
-/* http://jsfiddle.net/dH6LS/689/ */
-
 .starter-template {
   padding: 40px 15px;
   text-align: center;
@@ -31,34 +29,44 @@ path{
 
 @-webkit-keyframes glowplayer1 {
     to {
+        text-shadow: 3px 0 10px #FF3399 ;
+    }
+}
+
+@-webkit-keyframes glowplayer2 {
+    to {
         text-shadow: 3px 0 10px yellow;
     }
 }
 
 #player1{
     text-align: left;
-    -webkit-animation: glowplayer1 .5s infinite alternate;
-}
-
-@-webkit-keyframes glowplayer2 {
-    to {
-        text-shadow: 3px 0 10px #FF3399;
-    }
+    opacity:0.0;
 }
 
 #player2{
     text-align: right;
-        -webkit-animation: glowplayer2 .5s infinite alternate;
+    opacity:0.0;
 }
-
 
 #board{
     display: block;
     margin: auto;
-    border-radius: 4px
+    border-radius: 4px;
 }
 
 #scoreBar{
     display: block;
     margin: auto;
+}
+
+#clickStartGame{
+    font-size:70px;
+    position:absolute;
+    top:50%;
+    left:50%;
+    margin-top: -100px;
+    margin-left: -400px;
+    text-align:center;
+
 }

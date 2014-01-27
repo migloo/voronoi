@@ -1,0 +1,20 @@
+/*
+Voronoi can take an data model, as long as the x and y accessor are specified in its initalisation.
+
+References :
+http://bl.ocks.org/mbostock/3808234
+http://bl.ocks.org/mbostock/3916621
+http://bl.ocks.org/cloudshapes/5662135
+http://bost.ocks.org/mike/transition/
+http://www.jasondavies.com/voroboids/
+
+To understand what is Enter(), Exit() and Remove():
+http://bost.ocks.org/mike/join/
+
+Add a Force() on Vertices to make it more lively:
+need to change vertices format ?
+
+Closure defines the variable for
+a closure is the local variables for a function — kept alive after the function has returned, or
+a closure is a stack-frame which is not deallocated when the function returns (as if a 'stack-frame' were malloc'ed instead of being on the stack!).
+*/
