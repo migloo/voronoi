@@ -14,7 +14,7 @@ var boardDisplay = {
 
 var game = {
                       counter: 0.,
-                      maxCount: 10.0,
+                      maxCount: 20.0,
                       playerToPlay: "player1",
                       scorePlayer1: 0.5,
                       scorePlayer2:  0.5
@@ -128,6 +128,7 @@ var onMouseClick = function(d){
   if (game.counter==0) startOfGame();
   var m = d3.mouse(this);
   vertices.push({x:m[0], y:m[1], player:game.playerToPlay, isAlive:true});
+  updateMoveLeftCounters();
   alternatePlayer();
   redraw();
   if(game.counter == game.maxCount ) endOfGame();
@@ -139,10 +140,16 @@ var voronoi = d3.geom.voronoi()
                            .clipExtent([[0, 0], [boardDisplay.width, boardDisplay.height]]);
 
 // Setting Up General Layout
+
+//var svg = d3.select("#boardContainer")
+//                   .on("click", startOfGame);
+
 var svg = d3.select("#board")
                     .attr("width", boardDisplay.width)
                     .attr("height", boardDisplay.height)
                     .on("click", onMouseClick);
+
+d3.select("#clickStartGame").on("click", onMouseClick);
 
 svg.append("rect").attr("x",0.0)
                             .attr("y",0.0)
@@ -164,21 +171,50 @@ var marker50  = scoreBar.append("rect").attr("id","marker50")
                                                                 .attr("height", "30px")
                                                                 .attr("margin-left", "-2px")
                                                                 .style("fill-opacity", 0.0)
-/*
-svg.append("circle")
-      .attr("id","circlePlayer1")
-      .attr("cx",-50)
-      .attr("cy", boardDisplay.height * 0.4)
-      .attr("r", 40)
 
-svg.append("circle")
-      .attr("id","circlePlayer2")
-      .attr("cx", boardDisplay.width + 10)
-      .attr("cy", boardDisplay.height * 0.4)
-      .attr("r", 40)
-*/
+function initializeCounters(){
+  var counter1 = d3.select("#leftCounter").select("g")
 
-// End Of Setting Up General Layout
+  counter1.append("circle")
+      .attr("cx",50)
+      .attr("cy", 50)
+      .attr("r", 40)
+      .style("fill", "grey")
+
+  counter1.append("text")
+                  .attr("class",'textCounter')
+                  .attr("id","counterPlayer1")
+                  .attr("dx",30.0)
+                  .attr("dy",60.0)
+                  .text("10")
+
+  var counter1 = d3.select("#rightCounter").select("g")
+
+  counter1.append("circle")
+      .attr("cx",50)
+      .attr("cy", 50)
+      .attr("r", 40)
+      .style("fill", "grey")
+
+  counter1.append("text")
+                .attr("class",'textCounter')
+                .attr("id","counterPlayer2")
+                .attr("dx",30.0)
+                .attr("dy",60.0)
+                .text("10")
+}
+
+// end of general layout
+
+function updateMoveLeftCounters(){
+  var leftToPlay = game.maxCount-game.counter - 1
+  var leftForPlayer1 = Math.floor(leftToPlay/2)
+  var leftForPlayer2 = Math.ceil(leftToPlay/2)
+  var offset1 = leftForPlayer1>9 ? 30 : 40;
+  var offset2 = leftForPlayer2>9 ? 30 : 40;
+  d3.select("#counterPlayer1").attr("dx", offset1).text(leftForPlayer1)
+  d3.select("#counterPlayer2").attr("dx", offset2).text(leftForPlayer2)
+}
 
 function updateScore(tessellation){
   // could use map & filter here.
@@ -284,6 +320,7 @@ function startOfGame(){
         .style("opacity",1.0)
     d3.select("#marker50")
         .style("fill-opacity",1.0)
+    initializeCounters()
 }
 
 function endOfGame(){
